@@ -5490,15 +5490,15 @@ EXPORT_SYMBOL(drm_dp_mst_atomic_enable_dsc);
  * Returns:
  *   - 0 if the new state is valid
  *   - %-ENOSPC, if the new state is invalid, because of BW limitation
- *         @failing_port is set to:
- *         - The non-root port where a BW limit check failed
- *           with all the ports downstream of @failing_port passing
- *           the BW limit check.
- *           The returned port pointer is valid until at least
- *           one payload downstream of it exists.
- *         - %NULL if the BW limit check failed at the root port
- *           with all the ports downstream of the root port passing
- *           the BW limit check.
+ *     @failing_port is set to:
+ *
+ *       - The non-root port where a BW limit check failed with all the ports
+ *         downstream of @failing_port passing the BW limit check.
+ *         The returned port pointer is valid until at least one payload
+ *         downstream of it exists.
+ *       - %NULL if the BW limit check failed at the root port with all the
+ *         ports downstream of the root port passing the BW limit check.
+ *
  *   - %-EINVAL, if the new state is invalid, because the root port has
  *     too many payloads.
  */
