@@ -1755,7 +1755,6 @@ MODULE_DEVICE_TABLE(of, keystone_qmss_of_match);
 static int knav_queue_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
-	struct device_node *qmgrs, *queue_pools, *regions, *pdsps;
 	struct device *dev = &pdev->dev;
 	u32 temp[2];
 	int ret;
@@ -1798,42 +1797,48 @@ static int knav_queue_probe(struct platform_device *pdev)
 	kdev->base_id    = temp[0];
 	kdev->num_queues = temp[1];
 
-	/* Initialize queue managers using device tree configuration */
-	qmgrs =  of_get_child_by_name(node, "qmgrs");
-	if (!qmgrs) {
-		dev_err(dev, "queue manager info not specified\n");
-		ret = -ENODEV;
-		goto err;
-	}
-	ret = knav_queue_init_qmgrs(kdev, qmgrs);
-	of_node_put(qmgrs);
-	if (ret)
-		goto err;
-
-	/* get pdsp configuration values from device tree */
-	pdsps =  of_get_child_by_name(node, "pdsps");
-	if (pdsps) {
-		ret = knav_queue_init_pdsps(kdev, pdsps);
-		if (ret)
+	{
+		/* Initialize queue managers using device tree configuration */
+		struct device_node *qmgrs __free(device_node) =
+				of_get_child_by_name(node, "qmgrs");
+		if (!qmgrs) {
+			dev_err(dev, "queue manager info not specified\n");
+			ret = -ENODEV;
 			goto err;
-
-		ret = knav_queue_start_pdsps(kdev);
+		}
+		ret = knav_queue_init_qmgrs(kdev, qmgrs);
 		if (ret)
 			goto err;
 	}
-	of_node_put(pdsps);
 
-	/* get usable queue range values from device tree */
-	queue_pools = of_get_child_by_name(node, "queue-pools");
-	if (!queue_pools) {
-		dev_err(dev, "queue-pools not specified\n");
-		ret = -ENODEV;
-		goto err;
+	{
+		/* get pdsp configuration values from device tree */
+		struct device_node *pdsps __free(device_node) =
+				of_get_child_by_name(node, "pdsps");
+		if (pdsps) {
+			ret = knav_queue_init_pdsps(kdev, pdsps);
+			if (ret)
+				goto err;
+
+			ret = knav_queue_start_pdsps(kdev);
+			if (ret)
+				goto err;
+		}
 	}
-	ret = knav_setup_queue_pools(kdev, queue_pools);
-	of_node_put(queue_pools);
-	if (ret)
-		goto err;
+
+	{
+		/* get usable queue range values from device tree */
+		struct device_node *queue_pools __free(device_node) =
+				of_get_child_by_name(node, "queue-pools");
+		if (!queue_pools) {
+			dev_err(dev, "queue-pools not specified\n");
+			ret = -ENODEV;
+			goto err;
+		}
+		ret = knav_setup_queue_pools(kdev, queue_pools);
+		if (ret)
+			goto err;
+	}
 
 	ret = knav_get_link_ram(kdev, "linkram0", &kdev->link_rams[0]);
 	if (ret) {
@@ -1853,16 +1858,18 @@ static int knav_queue_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	regions = of_get_child_by_name(node, "descriptor-regions");
-	if (!regions) {
-		dev_err(dev, "descriptor-regions not specified\n");
-		ret = -ENODEV;
-		goto err;
+	{
+		struct device_node *regions __free(device_node) =
+				of_get_child_by_name(node, "descriptor-regions");
+		if (!regions) {
+			dev_err(dev, "descriptor-regions not specified\n");
+			ret = -ENODEV;
+			goto err;
+		}
+		ret = knav_queue_setup_regions(kdev, regions);
+		if (ret)
+			goto err;
 	}
-	ret = knav_queue_setup_regions(kdev, regions);
-	of_node_put(regions);
-	if (ret)
-		goto err;
 
 	ret = knav_queue_init_queues(kdev);
 	if (ret < 0) {
