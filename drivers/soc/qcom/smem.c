@@ -1032,18 +1032,15 @@ static int qcom_smem_resolve_mem(struct qcom_smem *smem, const char *name,
 				 struct smem_region *region)
 {
 	struct device *dev = smem->dev;
-	struct device_node *np;
+	struct device_node *np __free(device_node) =
+			of_parse_phandle(dev->of_node, name, 0);
 	struct resource r;
 	int ret;
 
-	np = of_parse_phandle(dev->of_node, name, 0);
-	if (!np) {
-		dev_err(dev, "No %s specified\n", name);
-		return -EINVAL;
-	}
+	if (!np)
+		return dev_err_probe(dev, -EINVAL, "No %s specified\n", name);
 
 	ret = of_address_to_resource(np, 0, &r);
-	of_node_put(np);
 	if (ret)
 		return ret;
 
