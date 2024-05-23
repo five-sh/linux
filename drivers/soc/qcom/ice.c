@@ -265,7 +265,6 @@ struct qcom_ice *of_qcom_ice_get(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct qcom_ice *ice;
-	struct device_node *node;
 	struct resource *res;
 	void __iomem *base;
 
@@ -292,15 +291,15 @@ struct qcom_ice *of_qcom_ice_get(struct device *dev)
 	 * (legacy DT binding), then it must at least provide a phandle
 	 * to the ICE devicetree node, otherwise ICE is not supported.
 	 */
-	node = of_parse_phandle(dev->of_node, "qcom,ice", 0);
+	struct device_node *node __free(device_node) =
+			of_parse_phandle(dev->of_node, "qcom,ice", 0);
 	if (!node)
 		return NULL;
 
 	pdev = of_find_device_by_node(node);
 	if (!pdev) {
 		dev_err(dev, "Cannot find device node %s\n", node->name);
-		ice = ERR_PTR(-EPROBE_DEFER);
-		goto out;
+		return ERR_PTR(-EPROBE_DEFER);
 	}
 
 	ice = platform_get_drvdata(pdev);
@@ -308,8 +307,7 @@ struct qcom_ice *of_qcom_ice_get(struct device *dev)
 		dev_err(dev, "Cannot get ice instance from %s\n",
 			dev_name(&pdev->dev));
 		platform_device_put(pdev);
-		ice = ERR_PTR(-EPROBE_DEFER);
-		goto out;
+		return ERR_PTR(-EPROBE_DEFER);
 	}
 
 	ice->link = device_link_add(dev, &pdev->dev, DL_FLAG_AUTOREMOVE_SUPPLIER);
@@ -318,11 +316,8 @@ struct qcom_ice *of_qcom_ice_get(struct device *dev)
 			"Failed to create device link to consumer %s\n",
 			dev_name(dev));
 		platform_device_put(pdev);
-		ice = ERR_PTR(-EINVAL);
+		return ERR_PTR(-EINVAL);
 	}
-
-out:
-	of_node_put(node);
 
 	return ice;
 }
