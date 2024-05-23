@@ -486,34 +486,27 @@ static int qcom_smp2p_alloc_outbound_item(struct qcom_smp2p *smp2p)
 
 static int smp2p_parse_ipc(struct qcom_smp2p *smp2p)
 {
-	struct device_node *syscon;
 	struct device *dev = smp2p->dev;
+	struct device_node *syscon __free(device_node) =
+			of_parse_phandle(dev->of_node, "qcom,ipc", 0);
 	const char *key;
 	int ret;
 
-	syscon = of_parse_phandle(dev->of_node, "qcom,ipc", 0);
-	if (!syscon) {
-		dev_err(dev, "no qcom,ipc node\n");
-		return -ENODEV;
-	}
+	if (!syscon)
+		return dev_err_probe(dev, -ENODEV, "no qcom,ipc node\n");
 
 	smp2p->ipc_regmap = syscon_node_to_regmap(syscon);
-	of_node_put(syscon);
 	if (IS_ERR(smp2p->ipc_regmap))
 		return PTR_ERR(smp2p->ipc_regmap);
 
 	key = "qcom,ipc";
 	ret = of_property_read_u32_index(dev->of_node, key, 1, &smp2p->ipc_offset);
-	if (ret < 0) {
-		dev_err(dev, "no offset in %s\n", key);
-		return -EINVAL;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, -EINVAL, "no offset in %s\n", key);
 
 	ret = of_property_read_u32_index(dev->of_node, key, 2, &smp2p->ipc_bit);
-	if (ret < 0) {
-		dev_err(dev, "no bit in %s\n", key);
-		return -EINVAL;
-	}
+	if (ret < 0)
+		return dev_err_probe(dev, -EINVAL, "no bit in %s\n", key);
 
 	return 0;
 }
