@@ -449,24 +449,29 @@ static void qmp_cooling_devices_remove(struct qmp *qmp)
 struct qmp *qmp_get(struct device *dev)
 {
 	struct platform_device *pdev;
-	struct device_node *np;
 	struct qmp *qmp;
 
 	if (!dev || !dev->of_node)
 		return ERR_PTR(-EINVAL);
 
-	np = of_parse_phandle(dev->of_node, "qcom,qmp", 0);
-	if (!np)
+	struct device_node *np __free(device_node) =
+			of_parse_phandle(dev->of_node, "qcom,qmp", 0);
+	if (!np) {
+		dev_err(dev, "Missing qcom,qmp property\n");
 		return ERR_PTR(-ENODEV);
+	}
 
 	pdev = of_find_device_by_node(np);
-	of_node_put(np);
-	if (!pdev)
+	if (!pdev) {
+		dev_err(dev, "Unable to find QMP dev_node\n");
 		return ERR_PTR(-EINVAL);
+	}
 
 	qmp = platform_get_drvdata(pdev);
 
 	if (!qmp) {
+		dev_err(dev, "Cannot get qmp instance from %s\n",
+			dev_name(&pdev->dev));
 		put_device(&pdev->dev);
 		return ERR_PTR(-EPROBE_DEFER);
 	}
